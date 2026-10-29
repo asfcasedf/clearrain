@@ -1,0 +1,108 @@
+---
+description: Vue3.4+Django5.1+MySQL8.0 全栈编码强制规范。环境版本锁定、接口格式、数据库约束、Service层、前端请求、权限、部署。
+globs: ["**/*.py", "**/*.vue", "**/*.js", "**/*.scss", "**/*.json"]
+alwaysApply: true
+---
+
+# 全栈编码强制规范
+
+## 锁定环境（禁止变更）
+
+- Python 3.13、Django 5.1、djangorestframework 3.15、djangorestframework-simplejwt、django-cors-headers、drf-spectacular
+- 前端：Node 24、Vue 3.4、Vite 5、Vue Router 4、Pinia、Axios、ECharts 5
+- UI：学生端 Vant 4.x（移动优先）+ 管理端 Element Plus（PC），两库按路由懒加载
+- 数据库：SQLite（开发）/ MySQL 8.0（生产）
+- 禁止：Vue2 Options API、Django 废弃 API、编造依赖、私自升级版本
+
+## 统一后端返回格式（死约定）
+
+```json
+{ "code": 200, "msg": "中文提示", "data": {} }
+```
+code: 200成功 / 400参数错误 / 401未登录 / 403权限不足 / 500服务异常
+
+## RESTful 路由
+
+- 前缀 `/api/v1/`，资源复数命名（`/users/` `/records/`）
+- GET查 POST增 PUT全量更新 PATCH部分更新 DELETE删
+- 详情接口 `/api/v1/users/<id>/`
+- 分页参数 `?page=1&page_size=10`，返回 `{results, total, page, page_size, total_pages}`
+
+## 数据库强制规则
+
+### 命名与建模
+1. **全栈蛇形命名**：Model、Serializer、前端请求体全部蛇形（`user_id`），禁止驼峰
+2. models.py 是唯一数据源，禁止手动改 MySQL 表结构
+3. Model 必须声明：字段类型、max_length、null、blank、on_delete、unique
+4. 外键必须写 related_name
+
+### ORM 操作
+5. `.get()` 必须捕获 DoesNotExist
+6. 增删改必须 `@transaction.atomic`
+7. 禁止原生 SQL，只允许 ORM
+8. 列表查询强制分页，禁止 `.objects.all()` 全表
+9. 新增数据前校验外键 ID 是否存在
+10. 必须捕获 IntegrityError
+11. 关联查询使用 `select_related()` / `prefetch_related()`，禁止 N+1
+12. 批量操作用 `bulk_create()` / `bulk_update()`，禁止循环单条写入
+
+### 迁移安全
+13. makemigrations 前检查依赖链
+14. 生产 migrate 前备份数据库
+15. 迁移失败用 `migrate <app> <number>` 回滚，禁止手动删表
+
+## Service 业务层规范
+
+每个 Django app 必须有 `services.py`：
+- **View**：仅参数校验 + 调用 Service + 返回响应，不写业务
+- **Service**：ORM + 事务 + 异常 + 业务规则
+- **Serializer**：仅字段校验和序列化
+- 命名：`create_xxx` / `update_xxx` / `get_xxx_list` / `delete_xxx`
+
+## 前端强制规则
+
+1. 所有请求走全局 axios 实例（`src/api/request.js`），禁止页面裸写 axios
+2. 自动携带 `Authorization: Bearer <token>`，超时 10s
+3. 所有请求 try-catch，禁止静默失败
+4. 路由全局守卫，401 自动跳登录页
+5. 全部 ref/reactive，禁止 Options API、this、DOM 裸操作
+6. el-form 必须设 `:rules`，提交按钮 `:loading` 防重复
+7. 接口结构定义在 `src/api/types.js`（JSDoc），接口变更同步更新
+
+## 后端 Django 强制规则
+
+### 用户安全
+- 密码用 `set_password()` 或 `make_password()`（PBKDF2 加密），**绝对禁止明文**
+- 校验密码用 `check_password`
+
+### 接口规范
+- 增删改必须 `@transaction.atomic`
+- 每个接口必须：参数校验 + 判空 + 异常捕获 + 日志 + 统一 Response + 权限
+- 禁止硬编码（密钥/域名/端口）→ 放 `.env`
+- 列表接口强制分页
+- 自定义 Permission 类，每个 View 显式 `permission_classes`
+
+### 跨域
+- CorsMiddleware 放在 CommonMiddleware 之前
+- CORS_ALLOWED_ORIGINS 必须包含 Vue Devbox 公网地址
+- 禁止 `CORS_ALLOW_ALL_ORIGINS = True`
+
+### 文件上传
+- 类型白名单校验、大小限制（MAX_UPLOAD_SIZE）、uuid 文件名
+- 存 MEDIA_ROOT，禁存 static
+
+## 开发与部署规则
+
+1. 后端启动：`python manage.py runserver`（开发）
+2. 前端启动：`npm run dev`（开发）
+3. 数据库：开发用 SQLite，生产切换 MySQL 8.0
+4. 敏感信息放 `.env`，`.env` 写入 `.gitignore`，提交 `.env.example`
+5. 生产部署方案待定（文档确认后补充）
+
+## AI 开发铁律
+
+1. 修改已有代码完全复用原有字段/变量/方法，禁止虚构
+2. 分层迭代：Model → Serializer → Service → View → URL → 前端类型 → 前端请求 → 前端页面
+3. 禁止一次性生成耦合大模块，禁止删除项目原有正确配置
+4. 所有异常场景全覆盖：空值/空列表/超长/特殊字符/超时/重复提交/主键冲突/外键不存在/未登录/越权/文件非法/文件过大
+5. 输出前检查：无冗余代码、无废弃注释、核心业务加中文注释

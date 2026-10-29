@@ -1,0 +1,102 @@
+---
+description: Django 5.1 + DRF 3.15 后端最佳实践。ViewSet、Service层、事务、N+1、认证、序列化、分页、错误处理。
+globs: ["**/*.py"]
+alwaysApply: true
+---
+
+# Django 5.1 + DRF 后端最佳实践
+
+## 技术栈锁定（禁止变更）
+
+- Python 3.13、Django 5.1、djangorestframework 3.15
+- djangorestframework-simplejwt（JWT 认证）
+- django-cors-headers、drf-spectacular（API 文档）
+- 数据库：SQLite（开发）/ MySQL 8.0（生产）
+
+## 分层架构（强制）
+
+```
+Model → Serializer → Service → ViewSet → URL
+```
+
+- **Model**：只定义字段、约束、关系，不放业务逻辑
+- **Serializer**：数据校验 + 序列化，`validate_xxx` 做字段级校验
+- **Service**：业务逻辑层，所有计算/评分/状态变更放这里
+- **ViewSet**：只做参数接收、调用 Service、返回响应，不写业务逻辑
+
+## ViewSet 规范
+
+- 优先用 `ModelViewSet` / `ReadOnlyModelViewSet`
+- 自定义动作用 `@action` 装饰器
+- 权限用 `permission_classes`，认证用 `authentication_classes`
+- 列表接口必须分页，用 `PageNumberPagination`
+
+## Service 层规范
+
+- 每个 app 下建 `services.py`，类命名 `XxxService`
+- 方法名用动词开头：`create_user`、`calculate_score`、`submit_assessment`
+- 所有写操作方法加 `@transaction.atomic`
+- 抛出 `APIException` 子类，由全局异常处理器统一返回
+
+## 数据库查询
+
+- 外键关联用 `select_related`，多对多用 `prefetch_related`，禁止 N+1
+- 过滤用 `QuerySet.filter()`，禁止 Python 层循环过滤
+- 批量操作用 `bulk_create` / `bulk_update`
+- 大表查询必须加索引（`db_index=True` 或 `Meta.indexes`）
+
+## 认证与安全
+
+- 密码用 `set_password()` 存储，禁止明文
+- JWT 用 SimpleJWT，access token 有效期 30 分钟，refresh 7 天
+- 角色区分：学生（student）/ 管理员（admin），用 `is_staff` 或自定义角色字段
+- 所有接口默认需登录，公开接口显式加 `permission_classes = [AllowAny]`
+- CORS 只允许前端域名，禁止 `*`
+
+## 序列化
+
+- 入参用独立 Serializer，出参用独立 Serializer，禁止混用
+- 敏感字段（密码、token）不写进 `fields`
+- 日期时间统一 `%Y-%m-%d %H:%M:%S`
+
+## 统一响应格式
+
+```python
+from rest_framework.response import Response
+
+def success(data=None, msg="操作成功"):
+    return Response({"code": 200, "msg": msg, "data": data})
+
+def fail(code=400, msg="操作失败", data=None):
+    return Response({"code": code, "msg": msg, "data": data}, status=code)
+```
+
+- 200 成功 / 400 参数错误 / 401 未登录 / 403 权限不足 / 404 不存在 / 500 服务异常
+
+## 分页
+
+```python
+from rest_framework.pagination import PageNumberPagination
+
+class StandardPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
+```
+
+返回格式：`{results, total, page, page_size, total_pages}`
+
+## 日志
+
+- 用 `logging`，禁止 `print`
+- 关键操作（登录、测评提交、评分）必须记 info 日志
+- 异常记 error 日志，附 traceback
+
+## 禁止清单
+
+- ❌ 函数视图（FBV），必须用 ViewSet
+- ❌ 在 ViewSet 里写业务逻辑
+- ❌ 裸 SQL（`raw()`），除非性能问题且有注释
+- ❌ `SELECT *`，必须指定字段
+- ❌ 明文密码
+- ❌ `print()` 调试

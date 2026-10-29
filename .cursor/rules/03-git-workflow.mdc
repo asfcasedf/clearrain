@@ -1,0 +1,81 @@
+---
+description: Git 版本控制强制规范。分支策略、commit格式、AI修改安全检查、回滚方案。
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Git 工作流强制规范
+
+## 分支策略
+
+- 禁止在 master/main 上直接开发
+- 从 develop 创建功能分支
+- 命名：`feature/xxx` `fix/xxx` `refactor/xxx` `docs/xxx` `deploy/xxx`
+
+## Commit 规范（Conventional Commits）
+
+```
+<type>(<scope>): <简短描述>
+```
+type：feat新功能 / fix修复 / refactor重构 / style样式 / docs文档 / chore工具 / perf性能
+
+**强制粒度**：
+- 新增一个 Model → 单独 commit
+- 新增一个 View/接口 → 单独 commit
+- 新增一个前端页面 → 单独 commit
+- 修改超过 500 行 → 拆分为多个小 commit
+- 禁止 "杂项"、"临时保存"、"更新" 等无意义 message
+
+## AI 修改前安全检查
+
+```
+1. git stash 保存当前未提交修改
+2. 确认不在 master 分支
+3. 超过 5 个文件的修改，先问用户确认
+```
+
+## AI 修改后
+
+```
+4. git diff 确认修改范围
+5. 分段 commit，提供规范的 commit message
+6. 每次修改后输出变更清单表格
+```
+
+## 回滚方案
+
+### 3 次修复失败 → 立即回滚
+
+```bash
+git checkout .          # 撤销未提交修改
+git revert <hash>       # 安全撤销（推荐，保留历史）
+git reset --hard <hash> # 硬回退（丢失后续提交，慎用）
+```
+
+### 回滚后重新提问的格式
+
+把前 3 轮失败的修复对话作为负面样本发给 AI，并说：
+"以下 3 种修复方案都失败了，请给出第 4 种完全不同的方案。"
+
+## .gitignore 必须包含
+
+```
+.env
+__pycache__/  *.py[cod]  *.egg-info/  dist/  *.sqlite3
+node_modules/  dist/
+.vscode/  .idea/
+.DS_Store  Thumbs.db
+staticfiles/  media/
+venv/  env/
+```
+仓库中需提交 `.env.example`（值留空）。
+
+## 标签管理
+
+阶段性成果打 tag：
+```bash
+git tag -a v0.1.0 -m "feat: 用户注册登录完成"
+git tag -a v0.2.0 -m "feat: 测评核心功能完成"
+git tag -a v1.0.0 -m "release: 毕设初版完成"
+```
+版本号：`v<主版本>.<功能版本>.<修复版本>`

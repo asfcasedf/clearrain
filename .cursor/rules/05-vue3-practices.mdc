@@ -1,0 +1,150 @@
+---
+description: Vue 3.4 + Vant 4（学生端）+ Element Plus（管理端）前端最佳实践。Composition API、状态管理、请求封装、路由守卫、组件规范。
+globs: ["**/*.vue", "**/*.js", "**/*.ts"]
+alwaysApply: true
+---
+
+# Vue 3 前端最佳实践
+
+## 技术栈锁定（禁止变更）
+
+- Vue 3.4 + Vite 5 + Vue Router 4 + Pinia
+- 学生端：Vant 4（移动端优先，375px）
+- 管理端：Element Plus（PC 优先，1366px）
+- HTTP：Axios
+- 图表：ECharts 5
+- **禁止**：Options API、Vue 2 写法
+
+## 核心语法
+
+### 必须用 Composition API + `<script setup>`
+
+```vue
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+
+const loading = ref(false)              // 基本类型用 ref
+const form = reactive({ username: '' })  // 对象用 reactive
+const fullName = computed(() => `${form.firstName}${form.lastName}`)
+
+onMounted(() => { /* ... */ })
+</script>
+```
+
+- `ref()` 用于基本类型（string/number/boolean）
+- `reactive()` 用于对象/数组
+- 禁止 `ref({})` 包裹对象
+- 禁止 `this.xxx`（Options API 写法）
+
+## 目录结构
+
+```
+src/
+├── api/          # 接口请求函数，按模块分文件
+├── assets/       # 静态资源
+├── components/   # 通用组件
+├── router/       # 路由配置
+├── stores/       # Pinia 状态
+├── utils/        # 工具函数
+├── views/        # 页面
+└── App.vue
+```
+
+## 请求封装（强制）
+
+### `src/api/request.js`
+
+```javascript
+import axios from 'axios'
+
+const request = axios.create({
+  baseURL: '/api/v1',
+  timeout: 10000,
+})
+
+// 请求拦截：带 token
+request.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+// 响应拦截：统一处理 code 和 401
+request.interceptors.response.use(
+  response => {
+    const { code, msg, data } = response.data
+    if (code === 200) return data
+    return Promise.reject(new Error(msg))
+  },
+  error => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      router.push('/login')
+    }
+    return Promise.reject(error)
+  }
+)
+
+export default request
+```
+
+- **所有请求必须走这个实例**，禁止直接 `axios.get`
+- 每个接口在 `src/api/xxx.js` 里封装成函数
+
+## 状态管理（Pinia）
+
+- 用户信息、token 用 Pinia store 管理
+- 页面级数据用组件内 ref/reactive，不塞 store
+- Store 命名：`useXxxStore`
+
+## 路由守卫
+
+```javascript
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+  if (to.meta.requiresAuth && !token) {
+    next('/login')
+  } else {
+    next()
+  }
+})
+```
+
+- 需要登录的路由加 `meta: { requiresAuth: true }`
+- 401 自动跳转登录页
+
+## 组件规范
+
+- 文件名 PascalCase：`UserCard.vue`、`AssessmentForm.vue`
+- props 必须定义类型和默认值
+- emit 必须声明
+- 单文件组件 ≤ 300 行，超过则拆分子组件
+
+## 学生端（Vant 4）规范
+
+- 只用 Vant 组件，禁止混用 Element Plus
+- 移动优先，viewport 375px
+- 按钮 `type="primary"` 用主题色，高度 44px+
+- 列表用 `van-list` + `van-cell`
+- 表单用 `van-form` + `van-field`
+
+## 管理端（Element Plus）规范
+
+- 只用 Element Plus，禁止混用 Vant
+- 表格用 `el-table` + `el-pagination`
+- 表单用 `el-form` + `el-form-item`，带 rules 校验
+- 布局用 `el-container` + `el-aside` + `el-main`
+
+## 错误与加载状态
+
+- 每个异步操作必须有 loading 状态
+- 列表页必须处理空状态（empty）
+- 请求失败必须 toast 提示用户，禁止静默失败
+
+## 禁止清单
+
+- ❌ Options API（`data()`、`methods`、`this`）
+- ❌ 直接 `axios.get`，必须走封装的 request
+- ❌ 学生端用 Element Plus / 管理端用 Vant
+- ❌ 硬编码 API 地址，必须用 baseURL
+- ❌ token 存 Vuex（用 Pinia + localStorage）

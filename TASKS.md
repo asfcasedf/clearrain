@@ -9,8 +9,8 @@
 
 | 任务 | 状态 | 负责人 | 说明 |
 |------|------|-------|------|
-| 安装 Python 3.13 / Node 24 / MySQL 8.0 | ⬜ | 用户 | 本地开发环境 |
-| 创建 GitHub 仓库并配置 remote | ⬜ | 用户 | 当前仅本地 git |
+| 安装 Python 3.13 / Node 24 / MySQL 8.0 | ✅ | 用户 | Python 3.13.13 + Node 24.15.0 已就位，MySQL 生产环境待装 |
+| 创建 GitHub 仓库并配置 remote | ✅ | 用户 | origin = github.com/asfcasedf/clearrain |
 | 选定配色方案（暖橘/钴蓝/柔绿） | ⬜ | 用户 | 影响 05 原型 + 02-ui-design.mdc |
 | 配置 GitHub Token（Cursor MCP） | ⬜ | 用户 | 见 Cursor工具配置清单.md |
 | 配置 Context7 API Key | ⬜ | 用户 | 见 TRAE工具安装状态.md |
@@ -38,17 +38,19 @@
 
 | 任务 | 状态 | 依赖 |
 |------|------|------|
-| Django 项目结构 + 配置分环境（dev/prod） | ⬜ | M1 文档确认 |
-| requirements.txt | ⬜ | 同上 |
-| 统一响应 {code,msg,data} + 全局异常处理 | ⬜ | 同上 |
-| CORS + JWT 配置 | ⬜ | 同上 |
-| StandardPagination 分页 | ⬜ | 同上 |
+| Django 项目结构 + 配置分环境（dev/prod） | ✅ | config/settings/{base,dev,prod}.py，默认 dev |
+| requirements.txt | ✅ | 已建 venv 并通过 django check / migrate |
+| 统一响应 {code,msg,data} + 全局异常处理 | ✅ | apps/common/{response,exceptions}.py |
+| CORS + JWT 配置 | ✅ | SimpleJWT access 30min / refresh 7d，CORS 白名单来自 .env |
+| StandardPagination 分页 | ✅ | apps/common/pagination.py 返回 {results,total,page,page_size,total_pages} |
+
+> 注：`accounts.User` 自定义用户模型已提前在 M2.1 落地（`AUTH_USER_MODEL` 必须在首次 migrate 前确定），M2.2 只剩接口部分。
 
 ### M2.2 认证（accounts app）
 
 | 任务 | 状态 |
 |------|------|
-| User 模型（AbstractUser + 扩展字段） | ⬜ |
+| User 模型（AbstractUser + 扩展字段） | ✅ |
 | POST /auth/register/ | ⬜ |
 | POST /auth/login/ | ⬜ |
 | POST /auth/refresh/ | ⬜ |
@@ -129,9 +131,9 @@
 
 ## 当前阻塞项
 
-1. **配色方案未选定** — 阻塞 05 页面原型细化 + 02-ui-design.mdc 更新
-2. **GitHub remote 未配置** — 阻塞 git push / 协作
-3. **M1 文档待用户确认** — 确认后 Cursor 可进入 M2
+1. **配色方案未选定** — 阻塞前端主题 + 05 页面原型细化 + 02-ui-design.mdc 更新（用户暂缓决定）
+2. **M1 文档待用户确认** — 后端 M2 已按现有 docs 开工；如 docs 后续变更，需同步回改代码
+3. **05 页面原型仍为占位** — 阻塞 M3 前端页面开发
 
 ## 下一步
 

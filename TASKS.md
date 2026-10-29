@@ -140,4 +140,9 @@
 1. 用户确认 docs/01~07 文档（05 除外，需先做配色+原型）
 2. 用户选定配色方案
 3. TRAE 用 Design 模式生成 12 页原型，回填 05
-4. 用户确认后，通知 Cursor 开始 M2.1 骨架
+4. Cursor 开始 M2.2 认证接口（register / login / refresh / me / password），按 TDD 先写测试
+
+## 备注
+
+- 已接入工程纪律规则 `.cursor/rules/06-workflow-discipline.mdc`（superpowers 适配版）：证据先于结论、TDD、系统化调试、提交前自查、分支收尾需用户选择。AGENTS.md / 启动指令.md 规则文件数量已同步为 7 个。
+- M2 起后端每个 app 的测试统一放 `apps/<app>/tests/test_*.py`，用 `manage.py test apps.<app>` 单跑。

@@ -1,0 +1,71 @@
+---
+description: 【纪律层】工程纪律规则（源自 superpowers skills 的 Cursor 适配版）：证据先于结论、TDD、系统化调试、自查式代码审查、分支收尾。凡涉及"声称完成/提交/修 bug"必须生效。
+globs: ["**/*.py", "**/*.vue", "**/*.js"]
+alwaysApply: true
+---
+
+# 工程纪律（superpowers 适配版）
+
+> 来源：superpowers 插件的 `test-driven-development`、`systematic-debugging`、`verification-before-completion`、`requesting-code-review`、`finishing-a-development-branch`。
+> 原版面向 Codex/Claude 且依赖 subagent 派发 reviewer；Cursor 无 subagent 能力，故把"派发审查者"改成"自查清单 + 关键节点请用户裁决"。
+
+## 一、证据先于结论（铁律）
+
+声称任何"通过 / 完成 / 已修复"之前，必须**在本轮**实际运行验证命令并读到输出，没跑过就不许说。
+
+| 结论 | 唯一有效证据 |
+|------|-------------|
+| 测试通过 | `python manage.py test` 输出 0 failures |
+| 系统检查通过 | `python manage.py check` → 0 issues |
+| 模型无需再迁移 | `python manage.py makemigrations --check --dry-run` 无变更 |
+| 前端能构建 | `npm run build` exit 0 |
+| bug 已修复 | 复现用例由红转绿（不是"改了代码"） |
+| 接口符合契约 | 实际请求返回预期 code 与 data 结构 |
+
+- 禁用表述：「应该可以」「大概率没问题」「看起来正常」「理论上」。
+- 没证据时必须写 `未验证：<原因>`，而不是省略。
+- 「之前这轮跑过」不算证据：验证必须在要提交的那棵代码树上跑。
+
+## 二、TDD（新功能 / bug 修复）
+
+铁律：**没有先失败的测试，不写实现代码。**
+
+循环：写一个最小失败测试 → 跑，确认它因"功能缺失"而红（不是语法错）→ 写最小实现让它绿 → 全量绿 → 重构。
+
+- Django：测试放 `apps/<app>/tests/test_<module>.py`，单个 app 用 `python manage.py test apps.<app>`
+- 一个测试只测一个行为，名字说清行为（`test_submit_reverse_scoring_question`）
+- 断言真实行为，不断言 mock 被调用几次
+- 例外（需用户点头）：脚手架/配置、纯数据迁移脚本、一次性排查脚本
+- 先写实现后补测试 ≠ TDD：被要求补测试时如实说明，不要假装先红过
+
+## 三、系统化调试（四阶段，禁止先猜后修）
+
+1. **找根因**：完整读 Traceback/日志 → 稳定复现 → `git diff` 查最近改动 → 多组件系统在层间加临时日志定位断点
+2. **找对照**：在同仓库找能正常工作的相似代码，逐条列出差异（"这个差异不可能有影响"通常就是根因）
+3. **单假设验证**：一次只改一处验证假设；不成立就换新假设，不在旧补丁上叠加
+4. **根因修复**：在根因处修 + 补回归测试（红→绿）才算完成
+
+升级规则：
+- 同一问题修 2 次仍失败 → 停止打补丁，回到阶段 1 重新取证
+- 修 3 次仍失败 → 回滚（`git checkout .`）并提议换方案/查架构，交用户裁决
+- 禁止"顺手再改点别的"：一次修复只解决一个问题
+
+## 四、代码审查（提交前自查，关键节点请用户 review）
+
+没有 subagent，改为对照清单自查，并把结论连同证据汇报：
+
+- [ ] `git diff --stat` 确认改动文件都在任务范围内，无顺手改动
+- [ ] 字段名/状态码/响应结构符合 `docs/04-API契约.md`
+- [ ] 无 N+1（`select_related`/`prefetch_related`）、写操作有 `@transaction.atomic`
+- [ ] 无明文密码、无 `print`、无调试代码与临时文件残留
+- [ ] 无过度防御（重复校验、冗余判空、为不存在场景写分支）
+- [ ] commit ≤ 500 行，message 符合 `<type>(<scope>): <subject>`
+- [ ] TASKS.md 状态已更新
+
+分级处理：Critical 立即修；Important 本轮内修；Minor 记到 TASKS.md 备注，不无限打磨。
+
+## 五、分支收尾
+
+1. 合并/推送前先跑全量测试，绿了才谈集成；红了先报失败项，不提交
+2. 集成方式（本地合并 / 推分支建 PR / 保留分支）由用户在三个选项中选择，不自作主张
+3. 删分支、`git branch -D`、`--force`、丢弃提交：一律需用户明确要求，且先列清会失去哪些 commit

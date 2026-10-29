@@ -76,6 +76,6 @@
 - 禁止 `git push --force` 到主分支
 
 ### 完整规则
-以上是要点，完整规范见项目根目录的 `AGENTS.md` 和 `.cursor/rules/` 下的 6 个规则文件。
+以上是要点，完整规范见项目根目录的 `AGENTS.md` 和 `.cursor/rules/` 下的 7 个规则文件。
 
 现在请先执行 `git pull`，然后读取 `TASKS.md`，告诉我当前有哪些待办任务。
